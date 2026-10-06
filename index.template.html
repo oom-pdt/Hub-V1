@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galaxis Hub v1 Prototype</title>
+  <meta name="description" content="Multi-tenant advertising analytics and workspace management prototype for agencies and clients.">
+  <meta property="og:title" content="Galaxis Hub v1 Prototype">
+  <meta property="og:description" content="Multi-tenant advertising analytics and workspace management prototype for agencies and clients.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  
+  <!-- Load Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+      tailwind.config = {
+          theme: {
+              extend: {
+                  colors: {
+                      brand: {
+                          500: '#6366f1',
+                          600: '#4f46e5',
+                      }
+                  },
+                  fontFamily: {
+                      sans: ['system-ui', '-apple-system', 'sans-serif'],
+                  }
+              }
+          }
+      }
+  </script>
+  
+  <!-- Include Lucide Icons script -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/src/prototype.css">
+</head>
+<body class="min-h-screen relative font-sans">
+
+  <!-- Custom In-App Toast Container -->
+  <div id="canvas-toast" class="app-toast">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-message">Message text</span>
+  </div>
+
+  <!-- Unmap Warning Modal -->
+  <div id="unmap-warning-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[480px]">
+      <div class="config-modal-header bg-red-50/50 border-b border-red-300/40 rounded-t-[24px]">
+        <div>
+          <div class="config-modal-title text-red-800">Unlink Ad Account?</div>
+        </div>
+      </div>
+      <div class="config-modal-body pt-6">
+        <p class="text-sm text-slate-800 mb-4">Are you sure you want to unlink this advertising account from the Workspace?</p>
+        <p class="text-[13px] text-red-600 font-medium p-4 bg-red-50/80 border border-red-300/50 rounded-xl leading-relaxed">
+          Data is not stored in Galaxis. Once unlinked, all platform conversions and spend data from this account will immediately be removed from the Workspace Analytics view.
+        </p>
+        <div class="flex justify-end gap-3 mt-6">
+          <button class="config-soft-btn" onclick="closeUnmapWarning()">Cancel</button>
+          <button class="btn-integ btn-danger text-[13px] px-5 py-2.5 rounded-xl" onclick="confirmUnmapAccount()">Yes, Unlink Account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Account Confirmation Modal -->
+  <div id="map-confirm-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[500px]">
+      <div class="config-modal-header">
+        <div>
+          <div class="config-modal-title text-brand-500">Confirm Account Linking</div>
+        </div>
+      </div>
+      <div class="config-modal-body pt-6">
+        <p class="text-sm text-slate-800 mb-5">We found an ad account matching this ID. Please confirm before linking it to the workspace.</p>
+        
+        <div class="glass-chip rounded-2xl p-5 mb-5">
+          <div class="flex justify-between mb-3 text-[13px]">
+            <span class="text-slate-500 font-medium">Platform:</span>
+            <span id="map-confirm-platform-name" class="font-semibold text-slate-800">Google Ads</span>
+          </div>
+          <div class="flex justify-between mb-3 text-[13px]">
+            <span class="text-slate-500 font-medium">Account Name:</span>
+            <span id="map-confirm-account-name" class="font-semibold text-slate-800">APAC Search Expansion</span>
+          </div>
+          <div class="flex justify-between mb-3 text-[13px]">
+            <span class="text-slate-500 font-medium">Account ID:</span>
+            <code id="map-confirm-account-id" class="font-medium text-slate-800 px-1.5 py-0.5 bg-white/50 rounded">#998-234-1102</code>
+          </div>
+          <div class="flex justify-between text-[13px] pt-3 border-t border-dashed border-white/40">
+            <span class="text-slate-500 font-medium">Target Workspace:</span>
+            <span id="map-confirm-target-org" class="font-semibold text-brand-500">Acme APAC Pte Ltd</span>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button class="config-soft-btn" onclick="closeMapConfirm()">Cancel</button>
+          <button class="btn-integ btn-integ-primary text-[13px] px-5 py-2.5 rounded-xl" onclick="confirmMapAccount()">Confirm & Link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEVELOPER PROTOTYPE DIRECTORY -->
+  <div class="dev-proto-bar">
+    <div class="dev-proto-line1">
+      <div class="dev-title">
+        <span>DEVELOPER PROTOTYPE DIRECTORY</span>
+      </div>
+      <div>
+        <span class="text-[10px] font-extrabold text-amber-900 mr-1.5">JUMP TO SCREEN:</span>
+        <select id="dev-screen-select" class="dev-select h-6 px-2 text-[11px] bg-white/60" onchange="jumpToScreen(this.value)">
+          <optgroup label="── AGENCY ──">
+            <option value="agency-home">1. Home</option>
+            <option value="agency-internal-org">2. Agency Team</option>
+            <option value="agency-adaccounts">3. Ad Account Linking</option>
+            <option value="agency-orgs">4. Workspaces</option>
+          </optgroup>
+          <optgroup label="── CLIENT WORKSPACE ──">
+            <option value="client-home">1. Workspace Home</option>
+            <option value="client-profile">2. Workspace Settings</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <div class="dev-proto-line2">
+      <span class="dev-label">VIEW DIFFERENT STATES:</span>
+      <div id="proto-subtoggles" class="flex gap-1 items-center"></div>
+    </div>
+  </div>
+
+  <!-- APP HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="btn-hamburger glass-chip rounded-[10px]" onclick="toggleSidebar()" title="Toggle Navigation Sidebar">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+
+      <a href="#" class="brand" onclick="handleBrandClick(); return false;" title="Return to Agency Master Hub">
+        <div class="brand-logo">G</div>
+        <div class="brand-text-block">
+          <span class="brand-title">Galaxis</span>
+          <span id="brand-agency-label" class="brand-agency-sub">for agencies</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-center">
+      <div class="workspace-switcher-wrap" id="workspace-switcher-wrap">
+        <button class="switcher-trigger-btn glass-chip rounded-xl" id="switcher-trigger-btn" onclick="toggleSwitcherDropdown(event)">
+          <div class="switcher-left">
+            <span class="switcher-dot" id="switcher-status-dot"></span>
+            <div class="switcher-info">
+              <span class="switcher-prefix" id="switcher-prefix">CLIENT WORKSPACE</span>
+              <span class="switcher-title" id="switcher-active-org-name">Acme APAC Pte Ltd</span>
+            </div>
+          </div>
+          <div class="switcher-right-actions">
+            <span class="switcher-switch-badge">Switch</span>
+            <i data-lucide="chevron-down" class="switcher-chevron w-4 h-4"></i>
+          </div>
+        </button>
+
+        <div class="switcher-dropdown glass-panel rounded-[20px] p-0" id="switcher-dropdown">
+          <div class="switcher-search-header">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+            <input type="text" id="switcher-search-input" class="switcher-search-field" placeholder="Search 612 client workspaces..." oninput="filterSwitcherDropdown(this.value)" autocomplete="off">
+            <button class="switcher-clear-btn" id="switcher-clear-btn" onclick="clearSwitcherSearch()" style="display: none;"><i data-lucide="x" class="w-3 h-3"></i></button>
+          </div>
+
+          <div class="switcher-section-title">
+            <span>AGENCY MASTER</span>
+          </div>
+
+          <div class="switcher-orgs-scroll" id="switcher-orgs-scroll">
+            <div class="switcher-org-row agency-overview" id="switcher-agency-master-row" onclick="selectWorkspaceFromSwitcher('__agency_master__')">
+              <div class="switcher-row-left">
+                <div class="switcher-row-avatar"><i data-lucide="zap" class="w-4 h-4"></i></div>
+                <div class="switcher-row-text">
+                  <span class="switcher-row-name">All Client Workspaces (Agency Master)</span>
+                  <span class="switcher-row-sub">Multi-tenant triage · 612 Client Workspaces · $142.8k Spend</span>
+                </div>
+              </div>
+              <div class="switcher-row-right">
+                <span class="platform-badge bg-brand-500/15 text-brand-500">Agency Hub</span>
+                <span class="switcher-current-check" id="check-agency-master"><i data-lucide="check" class="w-4 h-4"></i></span>
+              </div>
+            </div>
+
+            <div class="switcher-section-title pt-4">
+              <span>MEMBER CLIENT WORKSPACES (<span id="switcher-count-label">16</span>)</span>
+              <span class="text-[10px] text-slate-500 font-medium">Fast Switch</span>
+            </div>
+
+            <div id="switcher-orgs-list-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <button id="quick-back-hub-btn" class="quick-back-hub-btn" onclick="jumpToScreen('agency-home')" title="Return to Agency Master Dashboard">
+        <i data-lucide="corner-up-left" class="w-4 h-4"></i>
+        Agency Hub
+      </button>
+    </div>
+
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="sync-status-pill"><span class="sync-dot"></span> Synced with Google · Meta</div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside id="app-sidebar" class="sidebar glass-panel">
+    <div>
+      <div id="sidebar-nav-content"></div>
+    </div>
+
+    <div class="sidebar-user-footer">
+      <div class="user-profile-card glass-chip">
+        <div class="user-avatar">JJ</div>
+        <div class="user-info">
+          <span class="user-name">Jungkook Jeon</span>
+          <span class="user-role">jk@galaxis.ai</span>
+        </div>
+      </div>
+      <a href="#" class="nav-link mb-0" onclick="jumpToScreen('agency-home'); return false;">
+        <i data-lucide="life-buoy" class="w-4 h-4"></i>
+        Help & Support
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="main-content">
+
+    <!-- SCREEN 1: AGENCY HOME -->
+    <div id="screen-agency-home" class="app-screen">
+      <div class="kpi-grid-5">
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Total Accounts Managed</span></div><div class="kpi-value">612</div><div class="kpi-subtext">Client workspaces managed on Galaxis</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Managed Portfolio Spend</span></div><div class="kpi-value text-slate-800">$142,800</div><div class="kpi-subtext">Google + Meta · selected period</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Unified CPM</span></div><div class="kpi-value text-slate-800">$13.60</div><div class="kpi-subtext">Managed spend ÷ 1,000 impressions</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Unified CPC</span></div><div class="kpi-value text-slate-800">$0.95</div><div class="kpi-subtext">Managed spend ÷ platform clicks</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Unified Cost per Conversion</span></div><div class="kpi-value">$65.38</div><div class="kpi-subtext">Managed spend ÷ platform conversions</div></div>
+      </div>
+
+      <div id="agency-triage-card" class="glass-panel p-6 rounded-[24px] mb-6 border-l-4 border-amber-500" style="display: none;">
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i><h3 class="text-base font-semibold text-amber-800">Action Required</h3></div>
+          <span class="text-xs font-semibold text-amber-700">Account linking audit</span>
+        </div>
+        <div class="flex flex-col gap-2.5">
+          <div class="glass-chip px-4 py-3 rounded-xl flex justify-between items-center text-[13px]">
+            <span><strong class="text-amber-600 font-semibold">Unlinked Ad Accounts:</strong> 3 newly discovered accounts are not linked to client workspaces.</span><button class="btn-integ px-3 py-1.5 text-xs" onclick="jumpToScreen('agency-adaccounts')">Review accounts →</button>
+          </div>
+          <div class="glass-chip px-4 py-3 rounded-xl flex justify-between items-center text-[13px]">
+            <span><strong class="text-red-600 font-semibold">Client Workspaces Without Ad Accounts:</strong> 2 client workspaces currently have no linked Google or Meta account.</span><button class="btn-integ px-3 py-1.5 text-xs" onclick="jumpToScreen('agency-adaccounts')">Review linking →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MASTER WORKSPACES TABLE -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6">
+        <div class="table-controls">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-800">Master Client Workspaces (612 Total)</h3>
+            <p class="text-[13px] text-slate-500 mt-1">Showing live synchronized client workspaces with active product subscriptions and ad spend.</p>
+          </div>
+          <div class="glass-chip flex items-center gap-2 rounded-xl px-3 py-2 border-transparent w-[320px]">
+              <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+              <input type="text" id="workspace-search-input" placeholder="Search by client name or contact..." class="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" oninput="filterWorkspaceTable()">
+          </div>
+        </div>
+        <div class="table-container mt-0">
+          <table>
+            <thead>
+              <tr>
+                <th>Client Workspace</th>
+                <th>Primary Contact</th>
+                <th>Ad Platforms</th>
+                <th>Combined Spend</th>
+                <th>CPM</th>
+                <th>CPC</th>
+                <th class="two-line-th">Cost per<br>Conversion</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="master-workspace-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <div id="workspace-pagination-info" class="pagination-info">Showing 1–10 of 16 workspaces</div>
+          <div id="workspace-pagination-controls" class="pagination-buttons"></div>
+        </div>
+      </div>
+
+      <!-- CROSS-CLIENT PERFORMANCE -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6">
+        <div class="table-controls items-start">
+          <div>
+            <div class="flex items-center gap-3">
+              <h3 class="text-lg font-semibold text-slate-800">Cross-Client Campaign & Ad Performance</h3>
+              <span class="status-tag status-active">Multi-Tenant Analytics</span>
+            </div>
+            <p class="text-[13px] text-slate-500 mt-1">Compare top-performing and underperforming campaigns across all client accounts with dynamic heat-scale gradients.</p>
+          </div>
+          <div class="flex gap-3 items-center flex-wrap justify-end">
+            <div id="agency-date-filter-mount"></div>
+            <div class="glass-chip flex items-center gap-2 rounded-xl px-3 py-2 border-transparent w-[260px]">
+                <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+                <input type="text" id="agency-campaign-search" placeholder="Search campaign, client..." class="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" oninput="renderAgencyPerformanceTable()">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container mt-0">
+          <table>
+            <thead id="agency-performance-table-head"></thead>
+            <tbody id="agency-campaign-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: AGENCY ORGS -->
+    <div id="screen-agency-orgs" class="app-screen">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Workspace Management</h2>
+          <p class="text-sm text-slate-500 mt-1">Create client workspaces, manage primary contacts, and see the Agency Users assigned to each workspace.</p>
+        </div>
+        <button class="btn-integ btn-integ-primary text-sm px-5 py-2.5 rounded-xl font-semibold shadow-sm" onclick="openCreateOrgModal()">+ Create Client Workspace</button>
+      </div>
+
+      <div class="glass-panel rounded-[24px] overflow-hidden pt-2">
+        <table>
+          <thead>
+            <tr><th>Workspace Name</th><th>Primary Contact</th><th>Ad Platforms</th><th>Account Manager(s)</th><th>Action</th></tr>
+          </thead>
+          <tbody id="agency-orgs-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: AGENCY INTERNAL ORGANIZATION MANAGEMENT -->
+    <div id="screen-agency-internal-org" class="app-screen">
+      <div class="mb-4">
+          <h1 class="text-[24px] font-bold tracking-tight text-slate-900">Users, Roles & Permissions</h1>
+          <p class="mt-1 text-[14px] text-slate-500">Configure roles, then invite users to any client workspace.</p>
+      </div>
+
+      <!-- Top Section: KPIs + Action Panels -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div class="grid grid-cols-2 gap-4">
+              <div class="glass-kpi rounded-2xl p-5 flex flex-col justify-center">
+                  <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Active users</div>
+                  <div class="mt-2 text-3xl font-bold text-slate-900">200</div>
+                  <div class="mt-1 text-[13px] font-medium text-slate-500">214 total</div>
+              </div>
+              <div class="glass-kpi rounded-2xl p-5 flex flex-col justify-center">
+                  <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">In workspace</div>
+                  <div class="mt-2 text-3xl font-bold text-slate-900">160</div>
+                  <div class="mt-1 text-[13px] font-medium text-slate-500">40 unassigned</div>
+              </div>
+              <div class="glass-kpi rounded-2xl p-5 flex flex-col justify-center">
+                  <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending invites</div>
+                  <div class="mt-2 text-3xl font-bold text-slate-900">9</div>
+                  <div class="mt-1 text-[13px] font-medium text-transparent select-none">-</div>
+              </div>
+              <div class="glass-kpi rounded-2xl p-5 flex flex-col justify-center">
+                  <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Defined roles</div>
+                  <div class="mt-2 text-3xl font-bold text-slate-900">31</div>
+                  <div class="mt-1 text-[13px] font-medium text-transparent select-none">-</div>
+              </div>
+          </div>
+          
+          <div class="glass-panel rounded-3xl p-6 flex flex-col shadow-sm">
+              <div class="mb-4 flex flex-col gap-1">
+                  <div class="flex items-center justify-between">
+                      <h2 class="text-base font-semibold text-slate-900">Roles Overview</h2>
+                      <button class="text-[13px] font-semibold text-brand-500 hover:text-brand-600 cursor-pointer transition-colors" onclick="switchAgencyTab('roles')">
+                          Manage all 31
+                      </button>
+                  </div>
+              </div>
+              <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                  <div class="flex flex-wrap gap-2" id="roles-pill-container"></div>
+              </div>
+              
+              <div class="mt-4 pt-4 border-t border-white/40">
+                  <button onclick="openCreateRoleModal()" class="w-full rounded-xl border border-dashed border-slate-300 bg-white/20 py-2.5 text-[13px] font-semibold text-slate-600 transition hover:border-brand-500/50 hover:bg-white/50 hover:text-slate-900 cursor-pointer">
+                      + New role
+                  </button>
+              </div>
+          </div>
+
+          <div class="glass-panel rounded-3xl p-6 flex flex-col shadow-sm">
+              <div class="mb-5 flex items-center justify-between">
+                  <h2 class="text-base font-semibold text-slate-900">Invite Agency User</h2>
+              </div>
+              <div class="space-y-4 flex-1 flex flex-col justify-center">
+                  <div>
+                      <label class="mb-2 block text-[13px] font-medium text-slate-600">Email address</label>
+                      <input 
+                          id="quick-invite-email"
+                          type="email"
+                          placeholder="name@agency.com" 
+                          class="glass-chip w-full rounded-xl px-4 py-3 text-[14px] text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/50 transition-shadow"
+                          oninput="document.getElementById('quick-invite-btn').classList.toggle('has-input', this.value.trim().length > 0)"
+                      />
+                  </div>
+                  <div>
+                      <div class="mb-2 flex items-center justify-between">
+                          <label class="text-[13px] font-medium text-slate-600">Assign a role</label>
+                          <button onclick="openCreateRoleModal()" class="text-[12px] font-semibold text-brand-500 hover:text-brand-600 cursor-pointer">+ New role</button>
+                      </div>
+                      <div class="relative">
+                        <select 
+                            id="quick-invite-role"
+                            class="glass-chip w-full appearance-none rounded-xl px-4 py-3 text-[14px] text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/50 cursor-pointer transition-shadow"
+                        >
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                          <i data-lucide="chevron-down" class="h-4 w-4"></i>
+                        </div>
+                      </div>
+                  </div>
+                  <button 
+                      id="quick-invite-btn"
+                      onclick="sendQuickInvite()"
+                      class="btn-integ btn-dynamic-invite w-full mt-auto py-3 text-[14px] rounded-xl shadow-sm"
+                  >
+                      Send invite
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      <div class="w-full flex flex-col gap-5">
+          <div class="toggle-group self-start">
+              <button id="tab-btn-members" onclick="switchAgencyTab('members')" class="toggle-btn active">
+                  Users
+              </button>
+              <button id="tab-btn-roles" onclick="switchAgencyTab('roles')" class="toggle-btn">
+                  Roles & Permissions
+              </button>
+          </div>
+
+          <!-- MEMBERS TAB CONTENT -->
+          <div id="tab-content-members" class="glass-panel overflow-hidden rounded-3xl shadow-sm">
+              <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/40 px-6 py-5 bg-white/10">
+                  <div class="flex items-center gap-3">
+                      <h2 class="text-[16px] font-semibold text-slate-900">User Directory</h2>
+                      <span id="total-users-table-count" class="rounded-full bg-brand-500/10 px-2.5 py-0.5 text-[12px] font-semibold text-brand-600">
+                          0
+                      </span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                      <div class="glass-chip flex w-64 items-center gap-2 rounded-xl px-4 py-2.5 border-transparent shadow-sm">
+                          <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+                          <input 
+                              id="agency-user-search"
+                              type="text"
+                              placeholder="Name, email, workspace…" 
+                              class="w-full bg-transparent text-[13px] text-slate-900 outline-none placeholder:text-slate-400"
+                              oninput="renderAgencyMembers()"
+                          />
+                      </div>
+                      <div class="relative">
+                        <select 
+                            id="agency-role-filter"
+                            class="glass-chip appearance-none rounded-xl pl-4 pr-10 py-2.5 text-[13px] font-medium text-slate-700 outline-none border-transparent cursor-pointer shadow-sm hover:bg-white/60 transition-colors"
+                            onchange="renderAgencyMembers()"
+                        >
+                            <option value="all">Filter by Role: All</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                          <i data-lucide="chevron-down" class="h-4 w-4"></i>
+                        </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="table-container mt-0">
+                  <table class="w-full min-w-[850px]">
+                      <colgroup>
+                          <col class="w-[32%]">
+                          <col class="w-[25%]">
+                          <col class="w-[15%]">
+                          <col class="w-[13%]">
+                          <col class="w-[15%]">
+                      </colgroup>
+                      <thead>
+                          <tr>
+                              <th class="pl-6">User</th>
+                              <th>Assigned Workspaces</th>
+                              <th>Role</th>
+                              <th>Status</th>
+                              <th class="text-right pr-6">Action</th>
+                          </tr>
+                      </thead>
+                      <tbody id="agency-team-tbody" class="bg-white/20"></tbody>
+                  </table>
+              </div>
+          </div>
+
+          <!-- ROLES TAB CONTENT -->
+          <div id="tab-content-roles" class="glass-panel overflow-hidden rounded-3xl shadow-sm" style="display: none;">
+              <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/40 px-6 py-5 bg-white/10">
+                  <div>
+                      <h2 class="text-[16px] font-semibold text-slate-900">Roles Configuration</h2>
+                      <p class="text-[13px] text-slate-500 mt-1">Define granular access for agency members across all client workspaces.</p>
+                  </div>
+                  <button class="btn-integ btn-integ-primary text-[13px] px-5 py-2.5 rounded-xl font-semibold shadow-sm" onclick="openCreateRoleModal()">+ Create Custom Role</button>
+              </div>
+              
+              <div class="table-container mt-0">
+                  <table class="w-full min-w-[850px]">
+                      <colgroup>
+                          <col class="w-[20%]">
+                          <col class="w-[55%]">
+                          <col class="w-[15%]">
+                          <col class="w-[10%]">
+                      </colgroup>
+                      <thead>
+                          <tr>
+                              <th class="pl-6">Role Name</th>
+                              <th>Granted Permissions</th>
+                              <th>Assigned Users</th>
+                              <th class="text-right pr-6">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody id="agency-roles-tbody" class="bg-white/20"></tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: AGENCY AD ACCOUNTS & UNMAPPED QUEUE -->
+    <div id="screen-agency-adaccounts" class="app-screen">
+      <div class="layer-title-box mt-0 pt-2">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Ad Account Linking</h2>
+          <p class="text-sm text-slate-500 mt-1">Review unlinked ad accounts, client workspaces without linked accounts, and live Google / Meta account links.</p>
+        </div>
+        <span class="sync-status-pill"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i> Google + Meta manager access active</span>
+      </div>
+
+      <!-- URGENT: WORKSPACES WITHOUT LINKED ACCOUNTS -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6 border-l-4 border-red-600">
+        <div class="flex justify-between items-start px-6 py-5 border-b border-white/40 bg-white/10">
+          <div>
+            <h3 class="text-base font-semibold mb-1 text-red-800">Client Workspaces Without Linked Ad Accounts (<span id="unlinked-workspaces-count">0</span>)</h3>
+            <p class="text-[13px] text-slate-500">These client workspaces exist in Galaxis but currently have no Google or Meta ad account linked. Link them inline below to begin tracking.</p>
+          </div>
+          <button id="btn-save-all-maps" class="btn-integ" onclick="saveAllInlineMappings()">Save</button>
+        </div>
+        <div class="overflow-x-auto pb-2">
+          <table class="min-w-[800px] table-fixed w-full">
+            <colgroup>
+              <col class="w-[24%]">
+              <col class="w-[30%]">
+              <col class="w-[30%]">
+              <col class="w-[16%]">
+            </colgroup>
+            <thead>
+              <tr><th>Client Workspace</th><th>Google Account</th><th>Meta Account</th><th>Action</th></tr>
+            </thead>
+            <tbody id="unlinked-workspaces-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- UNMAPPED ACCOUNTS QUEUE -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6 border-l-4 border-amber-500">
+        <div class="flex justify-between items-start gap-4 px-6 py-5 border-b border-white/40 bg-white/10">
+          <div>
+            <div class="flex items-center gap-3">
+              <h3 class="text-base font-semibold text-amber-800">Unlinked Ad Accounts Queue (3 Pending Assignment)</h3>
+              <span class="slot-pill-check check-warning text-[11px]">Requires Admin Action</span>
+            </div>
+            <p class="text-[13px] text-slate-500 mt-1">These accounts were newly discovered under your agency tokens. Select the target client workspace and link each account. Max 1 Google and 1 Meta account per Workspace.</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="text-xs font-semibold text-slate-500">Platform</span>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn active" data-unmapped-platform="all" onclick="filterUnmappedAccounts('all')">All</button>
+              <button type="button" class="toggle-btn" data-unmapped-platform="google" onclick="filterUnmappedAccounts('google')">Google</button>
+              <button type="button" class="toggle-btn" data-unmapped-platform="meta" onclick="filterUnmappedAccounts('meta')">Meta</button>
+            </div>
+          </div>
+        </div>
+
+        <datalist id="datalist-workspaces"></datalist>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Ad Platform</th>
+              <th>Ad Account Name</th>
+              <th>Ad Account ID</th>
+              <th>Target Client Workspace</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="unmapped-accounts-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- LIVE MAPPED AD ACCOUNTS -->
+      <div class="glass-panel rounded-[24px] overflow-hidden">
+        <div class="px-6 py-5 border-b border-white/40 bg-white/10">
+            <h3 class="text-base font-semibold">Live Linked Ad Accounts</h3>
+        </div>
+        <div class="overflow-x-auto pb-2">
+          <table class="min-w-[800px] table-fixed w-full">
+            <colgroup>
+              <col class="w-[24%]">
+              <col class="w-[30%]">
+              <col class="w-[30%]">
+              <col class="w-[16%]">
+            </colgroup>
+            <thead><tr><th>Client Workspace</th><th>Google Account</th><th>Meta Account</th><th>Action</th></tr></thead>
+            <tbody id="live-mapped-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: CLIENT WORKSPACE HOME -->
+    <div id="screen-client-home" class="app-screen basic-analytics-home">
+      <div class="client-hero-top pt-2">
+        <div class="min-w-0"><h1 id="client-home-org-title" class="client-hero-org-title">Acme APAC Pte Ltd</h1><p class="text-sm text-slate-500 mt-1">Google and Meta advertising performance for this workspace.</p></div>
+        <div id="client-date-filter-mount"></div>
+      </div>
+
+      <!-- PLATFORM KPI ROW -->
+      <div class="kpi-grid-5" id="client-kpi-row">
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Total Ad Spend <span class="kpi-info-wrap"><button type="button" class="kpi-info" aria-label="More information">i</button><span class="kpi-info-popover" role="tooltip">Total advertising spend reported by connected ad platforms.</span></span></span></div><div id="kpi-client-spend" class="kpi-value">$12,400</div><div class="kpi-subtext">Google + Meta</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Impressions <span class="kpi-info-wrap"><button type="button" class="kpi-info" aria-label="More information">i</button><span class="kpi-info-popover" role="tooltip">Times ads were served, using the platform-reported impressions metric.</span></span></span></div><div id="kpi-client-impressions" class="kpi-value">579,800</div><div class="kpi-subtext kpi-secondary">CPM <strong id="kpi-client-cpm">$21.39</strong></div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Clicks <span class="kpi-info-wrap"><button type="button" class="kpi-info" aria-label="More information">i</button><span class="kpi-info-popover" role="tooltip">Clicks reported by the ad platforms.</span></span></span></div><div id="kpi-client-clicks" class="kpi-value">20,490</div><div class="kpi-subtext kpi-secondary kpi-secondary-metrics"><span class="kpi-secondary-metric">CTR <strong id="kpi-client-ctr">3.53%</strong></span><span class="kpi-secondary-metric">Avg. CPC <strong id="kpi-client-avg-cpc">$0.61</strong></span></div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Platform Conversions <span class="kpi-info-wrap"><button type="button" class="kpi-info" aria-label="More information">i</button><span class="kpi-info-popover" role="tooltip">Platform-reported conversion actions.</span></span></span></div><div id="kpi-client-conversions" class="kpi-value">342</div><div class="kpi-subtext">Platform-reported conversions</div></div>
+        <div class="kpi-card glass-kpi"><div class="kpi-header"><span class="kpi-title">Cost per Conversion <span class="kpi-info-wrap"><button type="button" class="kpi-info" aria-label="More information">i</button><span class="kpi-info-popover" role="tooltip">Total ad spend divided by platform-reported conversions.</span></span></span></div><div id="kpi-client-cpa" class="kpi-value">$36.26</div><div class="kpi-subtext">Across connected ad platforms</div></div>
+      </div>
+
+      <!-- CAMPAIGN & AD PERFORMANCE TABLE -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6">
+        <div class="table-controls items-start pb-1">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-800">Campaigns &amp; Ads Table View</h3>
+            <p id="client-perf-desc" class="text-[13px] text-slate-500 mt-1">Platform-reported campaign and ad metrics from Google and Meta.</p>
+          </div>
+          <div class="flex gap-3 items-center flex-wrap justify-end">
+            <div class="toggle-group">
+              <button id="view-tab-platform" class="toggle-btn" onclick="switchPerformanceView('platform')">Platform</button>
+              <button id="view-tab-campaign" class="toggle-btn active" onclick="switchPerformanceView('campaign')">Campaigns</button>
+              <button id="view-tab-adgroup" class="toggle-btn" onclick="switchPerformanceView('adgroup')">Ad Groups</button>
+              <button id="view-tab-ad" class="toggle-btn" onclick="switchPerformanceView('ad')">Ads</button>
+            </div>
+
+            <button class="btn-integ bg-white/60 text-slate-700 hover:bg-white border-transparent shadow-sm" onclick="toggleAdvancedFilterPanel()">
+                <i data-lucide="list-filter" class="w-4 h-4 mr-2"></i> Filters
+            </button>
+
+            <div class="glass-chip flex items-center gap-2 rounded-xl px-3 py-2 border-transparent w-[240px]">
+                <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+                <input type="text" id="campaign-search-input" placeholder="Search by name, platform..." class="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" oninput="filterPerformanceTable()">
+            </div>
+          </div>
+        </div>
+
+        <!-- ADVANCED FILTER PANEL -->
+        <div id="advanced-filter-panel" class="advanced-filter-panel">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-6 mb-5">
+            <div>
+              <div class="filter-group-title">Platform</div>
+              <div class="filter-pills-wrap" id="filter-wrap-platform">
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('platform', 'Google', this)">Google</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('platform', 'Meta', this)">Meta</div>
+              </div>
+            </div>
+            <div>
+              <div class="filter-group-title">Status</div>
+              <div class="filter-pills-wrap" id="filter-wrap-status">
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('status', 'Active', this)">Active</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('status', 'Paused', this)">Paused</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('status', 'Attention Required', this)">Attention Required</div>
+              </div>
+            </div>
+            <div>
+              <div class="filter-group-title">Creative Format</div>
+              <div class="filter-pills-wrap" id="filter-wrap-format">
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('format', 'Image', this)">Image</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('format', 'Video', this)">Video</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('format', 'Carousel', this)">Carousel</div>
+                <div class="filter-select-pill" onclick="toggleAdvancedFilterItem('format', 'Text/Search', this)">Text/Search</div>
+              </div>
+            </div>
+            <div>
+              <div class="filter-group-title">Specific Campaigns</div>
+              <div class="filter-campaign-list custom-scrollbar" id="filter-campaign-checklist"></div>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 border-t border-dashed border-white/40 pt-4">
+             <button class="config-soft-btn text-sm" onclick="clearAllAdvancedFilters()">Clear All</button>
+             <button class="btn-integ btn-integ-primary text-sm px-6 py-2 rounded-xl" onclick="toggleAdvancedFilterPanel()">Apply Filters</button>
+          </div>
+        </div>
+
+        <div id="active-perf-filter-badge" class="items-center gap-2.5 bg-brand-500/15 border border-brand-500/30 px-4 py-2 rounded-xl text-[13px] font-semibold text-brand-500 mx-6 mb-4 w-max backdrop-blur-md" style="display: none;">
+          <span id="active-perf-filter-text">Filtered</span>
+          <button onclick="clearPerformanceFilter()" title="Clear filter" class="bg-brand-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center cursor-pointer ml-1.5"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>
+
+        <div class="table-container mt-0">
+          <table class="performance-table-wide">
+            <thead id="performance-table-head"></thead>
+            <tbody id="campaign-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DAILY PERFORMANCE + HOURLY HEATMAP -->
+      <div class="client-chart-grid">
+        <div class="client-chart-card glass-panel">
+          <div class="client-chart-header">
+            <div><div class="client-chart-title">Daily spend, clicks &amp; conversions</div><div class="client-chart-subtitle">Daily platform activity for the selected date range.</div></div>
+            <div class="client-chart-legend">
+              <span class="client-chart-legend-item"><span class="client-chart-dot bg-[#4f86df]"></span>Spend (SGD)</span>
+              <span class="client-chart-legend-item"><span class="client-chart-dot bg-emerald-500"></span>Conversions</span>
+              <span class="client-chart-legend-item"><span class="client-chart-dot bg-brand-500"></span>Clicks</span>
+            </div>
+          </div>
+          <div class="daily-chart-wrap" id="client-daily-chart">
+            <svg class="daily-chart-svg" id="client-daily-chart-svg" role="img" aria-label="Daily spend, clicks and conversions chart"></svg>
+            <div class="daily-chart-tooltip glass-panel" id="client-daily-tooltip"></div>
+          </div>
+        </div>
+        <div class="client-chart-card glass-panel">
+          <div class="client-chart-header">
+            <div><div class="client-chart-title">Hour of day × day of week</div><div class="client-chart-subtitle">Ad-account local time (Asia/Singapore).</div></div>
+            <div class="toggle-group"><button type="button" id="client-heatmap-spend" class="toggle-btn active" onclick="setClientHeatmapMetric('spend')">Spend</button><button type="button" id="client-heatmap-cpl" class="toggle-btn" onclick="setClientHeatmapMetric('cpl')">Cost per conversion</button></div>
+          </div>
+          <div class="heatmap-wrap custom-scrollbar"><div class="heatmap-grid" id="client-hourly-heatmap"></div></div>
+          <div class="heatmap-legend"><span id="client-heatmap-legend-min">Low</span><div class="heatmap-ramp"></div><span id="client-heatmap-legend-max">High</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 6: CLIENT WORKSPACE SETTINGS & AD ACCOUNT MAPPING -->
+    <div id="screen-client-profile" class="app-screen">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Workspace Settings</h2>
+          <p class="text-sm text-slate-500 mt-1">Manage workspace members, role permissions, and link Google & Meta advertising accounts to this workspace.</p>
+        </div>
+      </div>
+
+      <!-- SECTION A: TEAM MEMBERS & ACCESS -->
+      <div class="glass-panel rounded-[24px] overflow-hidden mb-6">
+        <div class="flex justify-between items-center px-6 pt-6 pb-4">
+          <div>
+            <h3 class="text-base font-semibold text-slate-800">Users</h3>
+            <p class="text-[13px] text-slate-500 mt-1">Invite client collaborators and configure permissions across the Galaxis workspace.</p>
+          </div>
+          <button class="btn-integ btn-integ-primary text-sm px-5 py-2.5 rounded-xl font-semibold shadow-sm" onclick="openClientUserModal('invite')">+ Invite New User</button>
+        </div>
+
+        <table class="org-table-5col">
+          <colgroup>
+            <col><col><col><col><col>
+          </colgroup>
+          <thead>
+            <tr><th>User Name</th><th>Email</th><th>Permissions</th><th>Status</th><th class="org-action-col">Action</th></tr>
+          </thead>
+          <tbody id="client-users-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- SECTION A2: AGENCY ACCESS TO THIS WORKSPACE -->
+      <div id="agency-access-section" class="glass-panel rounded-[24px] overflow-hidden mb-6">
+        <div class="flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-900/5 bg-white/10">
+          <div>
+            <h3 class="text-base font-semibold text-slate-800">Agency Access</h3>
+            <p class="text-[13px] text-slate-500 mt-1">Agency accounts with access to this client workspace.</p>
+          </div>
+          <button id="btn-save-all-agency" class="btn-integ btn-integ-primary text-sm px-5 py-2.5 rounded-xl font-semibold shadow-sm" style="display: none;" onclick="saveAllAgencyUserAssignments()">Save All Queued</button>
+        </div>
+        <div class="p-4 bg-slate-50/50 border-b border-slate-900/5 flex items-center gap-4">
+          <div class="relative w-[340px]">
+             <input type="text" id="queue-agency-user-input" class="search-input w-full px-4 py-2.5 text-[13px]" placeholder="Search agency user to assign..." list="datalist-unassigned-agency-users" oninput="handleQueueAgencyUser(this)">
+             <datalist id="datalist-unassigned-agency-users"></datalist>
+          </div>
+          <span class="text-[12px] text-slate-500 font-medium">Select users to add them to the assignment queue.</span>
+        </div>
+        <table class="org-table-5col">
+          <colgroup>
+            <col><col><col><col><col>
+          </colgroup>
+          <thead><tr><th>Agency User</th><th>Email</th><th>Role</th><th>Status</th><th class="text-right">Action</th></tr></thead>
+          <tbody id="client-agency-access-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- SECTION B: AD ACCOUNT MAPPING CONFIGURATION -->
+      <div class="glass-panel rounded-[24px] p-6 mb-6">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <h3 class="text-base font-semibold text-slate-800">Advertising Account Linking</h3>
+            <p class="text-[13px] text-slate-500 mt-1 max-w-[800px]">
+              Only ad accounts linked to this workspace will be tracked in Analytics and have their conversion metrics calculated. Max 1 Google and 1 Meta account per Workspace.
+            </p>
+          </div>
+
+          <div id="org-admapping-permission-notice" class="bg-white/40 border border-white/40 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 backdrop-blur-md" style="display: none;">
+            🔒 View-Only Mode: Managed by Agency Administrator
+          </div>
+        </div>
+
+        <div id="org-mapping-grid" class="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] gap-6"></div>
+      </div>
+    </div>
+
+  </main>
+  
+  <!-- MODALS -->
+  <!-- User Management Modal -->
+  <div id="user-management-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[560px]">
+      <div class="config-modal-header">
+        <div>
+          <div class="config-modal-title">Manage User Access</div>
+          <div class="config-modal-subtitle">Configure role and workspace assignments.</div>
+        </div>
+        <button class="config-soft-btn p-2 rounded-full w-9 h-9 flex items-center justify-center" onclick="closeManageUserModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="config-modal-body">
+        <div class="flex items-center gap-4 pb-6 mb-6 border-b border-slate-900/5">
+           <div id="manage-user-avatar" class="grid h-12 w-12 flex-none place-items-center rounded-full bg-brand-500/10 text-[16px] font-bold text-brand-600 shadow-sm border border-brand-500/20"></div>
+           <div>
+              <div id="manage-user-name" class="text-[16px] font-bold text-slate-900"></div>
+              <div id="manage-user-email" class="text-[14px] text-slate-500 font-medium"></div>
+           </div>
+        </div>
+
+        <div class="mb-7">
+          <label class="config-field-label">Agency Role</label>
+          <div class="relative">
+              <select id="manage-user-role" class="config-input w-full appearance-none cursor-pointer text-[14px]" onchange="markUserManagementModified()"></select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <i data-lucide="chevron-down" class="h-4 w-4"></i>
+              </div>
+          </div>
+          <p class="text-[12px] text-slate-500 mt-2 font-medium">This role applies globally across all assigned workspaces.</p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-3">
+              <label class="config-field-label mb-0">Assigned Workspaces</label>
+              <span id="manage-user-ws-count" class="text-[12px] font-semibold text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-full">0 Selected</span>
+          </div>
+          <div class="glass-chip flex items-center gap-2 rounded-xl px-3 py-2 border-slate-200 mb-3 bg-white">
+              <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+              <input type="text" id="manage-user-ws-search" placeholder="Search workspaces..." class="w-full bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-400" oninput="filterManageUserWorkspaces()">
+          </div>
+          <div id="manage-user-ws-list" class="custom-scrollbar max-h-[200px] overflow-y-auto border border-slate-900/10 rounded-xl p-1.5"></div>
+        </div>
+
+        <div class="config-bottom-row mt-4 pt-6 border-t border-slate-900/5">
+          <div></div>
+          <div class="flex gap-3">
+              <button class="config-soft-btn text-sm px-5 py-2.5 rounded-xl" onclick="closeManageUserModal()">Cancel</button>
+              <button id="btn-save-user-management" class="btn-integ btn-dynamic-invite text-sm px-6 py-2.5 rounded-xl font-semibold shadow-sm" onclick="saveUserManagement()">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Role Modal -->
+  <div id="role-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[520px]">
+      <div class="config-modal-header">
+        <div>
+          <div class="config-modal-title" id="role-modal-title">Create Custom Role</div>
+          <div class="config-modal-subtitle" id="role-modal-subtitle">Define granular access for specific agency members.</div>
+        </div>
+        <button class="config-soft-btn p-2 rounded-full w-9 h-9 flex items-center justify-center" onclick="closeRoleModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="config-modal-body">
+        <div class="mt-2 mb-6">
+          <label class="config-field-label">Role Name</label>
+          <input id="role-name-input" class="config-input w-full" placeholder="e.g. Data Analyst" oninput="markRoleModalModified()">
+        </div>
+
+        <div class="mb-7">
+          <label class="config-field-label">Role Badge Colour</label>
+          <div class="flex flex-wrap gap-3" id="role-color-selector"></div>
+        </div>
+        
+        <label class="config-field-label mb-4">Permissions Configuration</label>
+        
+        <div class="flex flex-col gap-6">
+            <div>
+              <div class="text-[11px] font-bold text-slate-500 mb-3 uppercase tracking-wide">Workspace Management</div>
+              <label class="custom-checkbox-wrap disabled-cb"><input id="perm-ws-view" type="checkbox" checked disabled><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>View assigned workspaces (Default)</span></label>
+              <label class="custom-checkbox-wrap"><input id="perm-ws-create" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Create new workspaces</span></label>
+              <label class="custom-checkbox-wrap"><input id="perm-ws-client" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Manage clients in workspaces</span></label>
+              <label class="custom-checkbox-wrap mb-0"><input id="perm-ws-agency" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Assign & Unassign agency user to workspaces</span></label>
+            </div>
+
+            <div>
+              <div class="text-[11px] font-bold text-slate-500 mb-3 uppercase tracking-wide">Ad Account Permissions</div>
+              <label class="custom-checkbox-wrap mb-0"><input id="perm-ad-map" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Link & Unlink ad accounts to workspaces</span></label>
+            </div>
+
+            <div>
+              <div class="text-[11px] font-bold text-slate-500 mb-3 uppercase tracking-wide">Agency User Permissions</div>
+              <label class="custom-checkbox-wrap"><input id="perm-team-invite" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Invite new agency users</span></label>
+              <label class="custom-checkbox-wrap mb-0"><input id="perm-team-role" type="checkbox" onchange="markRoleModalModified()"><div class="custom-checkbox-box"><i data-lucide="check" stroke-width="3"></i></div><span>Create & edit agency roles</span></label>
+            </div>
+        </div>
+
+        <div class="config-bottom-row mt-4 pt-6 border-t border-slate-900/5">
+          <div>
+            <button id="btn-delete-role" class="btn-integ btn-danger text-sm px-4 py-2.5 rounded-xl font-semibold shadow-sm" style="display: none;" onclick="deleteCurrentRole()">Delete Role</button>
+            <span id="role-save-note" class="config-save-note">Roles can be assigned immediately after creation.</span>
+          </div>
+          <button id="btn-save-role" class="btn-integ btn-dynamic-invite text-sm px-6 py-3 rounded-xl font-semibold shadow-sm" onclick="saveRole()">Create Role</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Workspace User Modal -->
+  <div id="client-user-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[500px]">
+      <div class="config-modal-header">
+        <div>
+          <div class="config-modal-title" id="client-user-modal-title">Invite Workspace User</div>
+          <div class="config-modal-subtitle" id="client-user-modal-subtitle">Add a client collaborator to this workspace.</div>
+        </div>
+        <button class="config-soft-btn p-2 rounded-full w-9 h-9 flex items-center justify-center" onclick="closeClientUserModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="config-modal-body pt-4">
+        <div class="mb-5">
+          <label class="config-field-label">Email Address</label>
+          <input id="client-user-email" type="email" class="config-input w-full transition-opacity" placeholder="user@company.com" oninput="markClientUserModalModified()">
+        </div>
+        <div class="mb-5">
+          <label class="config-field-label mb-3">Permissions Configuration</label>
+          <div class="flex flex-col gap-3">
+            <label class="custom-checkbox-wrap disabled-cb mb-0" style="align-items: flex-start;">
+              <input id="client-perm-view" type="checkbox" checked disabled>
+              <div class="custom-checkbox-box" style="margin-top: 2px;"><i data-lucide="check" stroke-width="3"></i></div>
+              <div class="flex flex-col">
+                <span class="text-[13px] font-semibold text-slate-800">View workspace analytics (Default)</span>
+                <span class="text-[12px] text-slate-500 font-normal leading-normal">Can view performance analytics, campaigns, ads, charts, and export reports.</span>
+              </div>
+            </label>
+            <label class="custom-checkbox-wrap mb-0" style="align-items: flex-start;" onchange="markClientUserModalModified()">
+              <input id="client-perm-manage" type="checkbox">
+              <div class="custom-checkbox-box" style="margin-top: 2px;"><i data-lucide="check" stroke-width="3"></i></div>
+              <div class="flex flex-col">
+                <span class="text-[13px] font-semibold text-slate-800">Manage members</span>
+                <span class="text-[12px] text-slate-500 font-normal leading-normal">Can invite client collaborators and configure member permissions in this workspace.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="mb-6 pt-4 border-t border-slate-900/5">
+          <div class="flex items-center justify-between gap-4 p-3.5 rounded-2xl bg-slate-50/80">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[13px] font-semibold text-slate-900">Primary Contact</span>
+                <span id="primary-contact-status-badge" class="inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-800" style="display: none;">Current</span>
+              </div>
+              <div class="text-[12px] text-slate-500 mt-0.5 leading-normal" id="primary-contact-hint">Only 1 primary contact per workspace.</div>
+            </div>
+            <button type="button" id="btn-toggle-primary" class="config-soft-btn text-xs px-3.5 py-2 font-semibold transition-all shrink-0 cursor-pointer" onclick="togglePrimaryContactState()">
+              Set as Primary
+            </button>
+          </div>
+        </div>
+        <div class="config-bottom-row mt-4 pt-6 border-t border-slate-900/5">
+          <div></div>
+          <div class="flex gap-3">
+            <button class="config-soft-btn text-sm px-5 py-2.5 rounded-xl" onclick="closeClientUserModal()">Cancel</button>
+            <button id="btn-save-client-user" class="btn-integ btn-dynamic-invite text-sm px-6 py-2.5 rounded-xl font-semibold shadow-sm" onclick="saveClientUser()">Send Invite</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Client Workspace Modal -->
+  <div id="create-workspace-modal" class="config-modal-backdrop" style="display: none;">
+    <div class="config-modal-card max-w-[480px]">
+      <div class="config-modal-header">
+        <div>
+          <div class="config-modal-title">Create Client Workspace</div>
+          <div class="config-modal-subtitle">Set up a new client workspace to track advertising analytics.</div>
+        </div>
+        <button class="config-soft-btn p-2 rounded-full w-9 h-9 flex items-center justify-center" onclick="closeCreateOrgModal()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="config-modal-body pt-4">
+        <form onsubmit="event.preventDefault(); createWorkspaceSubmit();">
+          <div class="mb-5">
+            <label class="config-field-label">Workspace Name</label>
+            <input id="new-workspace-name-input" type="text" class="config-input w-full" placeholder="e.g. Acme Global Corporation" oninput="markCreateOrgModalModified()" autocomplete="off">
+            <p class="text-[12px] text-slate-500 mt-2 font-medium">You will be directed to Workspace Settings immediately to link ad accounts and configure member permissions.</p>
+          </div>
+          <div class="config-bottom-row mt-4 pt-6 border-t border-slate-900/5">
+            <div></div>
+            <div class="flex gap-3">
+              <button type="button" class="config-soft-btn text-sm px-5 py-2.5 rounded-xl" onclick="closeCreateOrgModal()">Cancel</button>
+              <button type="submit" id="btn-create-workspace" class="btn-integ btn-dynamic-invite text-sm px-6 py-2.5 rounded-xl font-semibold shadow-sm">Create Workspace</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

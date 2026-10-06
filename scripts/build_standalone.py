@@ -2,12 +2,15 @@ import os
 
 def build_standalone():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    index_path = os.path.join(base_dir, 'index.html')
+    template_path = os.path.join(base_dir, 'index.template.html')
+    if not os.path.exists(template_path):
+        template_path = os.path.join(base_dir, 'index.html')
+
     css_path = os.path.join(base_dir, 'src', 'prototype.css')
     data_path = os.path.join(base_dir, 'src', 'data.js')
     main_path = os.path.join(base_dir, 'src', 'main.js')
 
-    with open(index_path, 'r', encoding='utf-8') as f:
+    with open(template_path, 'r', encoding='utf-8') as f:
         html = f.read()
 
     with open(css_path, 'r', encoding='utf-8') as f:
@@ -47,12 +50,14 @@ def build_standalone():
     # Inline JS
     html = html.replace('<script type="module" src="/src/main.js"></script>', '<script>\n' + combined_js + '\n</script>')
 
-    # Save to standalone.html and public/galaxis-hub-prototype.html
+    # Save to index.html (for GitHub Pages root), standalone.html, and public/galaxis-hub-prototype.html
     out_paths = [
+        os.path.join(base_dir, 'index.html'),
         os.path.join(base_dir, 'standalone.html'),
         os.path.join(base_dir, 'public', 'galaxis-hub-prototype.html')
     ]
     if os.path.exists(os.path.join(base_dir, 'dist')):
+        out_paths.append(os.path.join(base_dir, 'dist', 'index.html'))
         out_paths.append(os.path.join(base_dir, 'dist', 'standalone.html'))
         out_paths.append(os.path.join(base_dir, 'dist', 'galaxis-hub-prototype.html'))
 
