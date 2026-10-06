@@ -207,6 +207,18 @@ function closeCreateOrgModal() {
   if (modal) modal.style.display = 'none';
 }
 
+function openShareModal() {
+  const modal = document.getElementById('share-github-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  window.lucide?.createIcons();
+}
+
+function closeShareModal() {
+  const modal = document.getElementById('share-github-modal');
+  if (modal) modal.style.display = 'none';
+}
+
 function markCreateOrgModalModified() {
   const input = document.getElementById('new-workspace-name-input');
   const btn = document.getElementById('btn-create-workspace');
@@ -2230,7 +2242,8 @@ Object.assign(window, {
   saveAgencyUser, revokeAgencyUser, handleDevSubtoggle, setTriageState,
   setOrgRoleMode, toggleDateFilter, switchDateFilterTab, applyDateFilter,
   closeDateFilter, drillDownPerformance, togglePrimaryContactState, setPrimaryContactDirectly,
-  closeCreateOrgModal, markCreateOrgModalModified, createWorkspaceSubmit
+  closeCreateOrgModal, markCreateOrgModalModified, createWorkspaceSubmit,
+  openShareModal, closeShareModal
 });
 
 document.addEventListener('click', function(e) {
@@ -2255,6 +2268,7 @@ document.addEventListener('keydown', function(e) {
     if (document.getElementById('user-management-modal')?.style.display !== 'none') closeManageUserModal();
     if (document.getElementById('client-user-modal')?.style.display !== 'none') closeClientUserModal();
     if (document.getElementById('create-workspace-modal')?.style.display !== 'none') closeCreateOrgModal();
+    if (document.getElementById('share-github-modal')?.style.display !== 'none') closeShareModal();
   }
 });
 
