@@ -1,0 +1,6 @@
+{
+  "name": "Galaxis Hub v1 Prototype",
+  "description": "Multi-tenant advertising analytics and workspace management prototype for agencies and clients.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
