@@ -8,6 +8,7 @@ def build_standalone():
 
     css_path = os.path.join(base_dir, 'src', 'prototype.css')
     data_path = os.path.join(base_dir, 'src', 'data.js')
+    specs_path = os.path.join(base_dir, 'src', 'specs.js')
     main_path = os.path.join(base_dir, 'src', 'main.js')
 
     with open(template_path, 'r', encoding='utf-8') as f:
@@ -18,6 +19,11 @@ def build_standalone():
 
     with open(data_path, 'r', encoding='utf-8') as f:
         data_js = f.read()
+
+    specs_clean = ""
+    if os.path.exists(specs_path):
+        with open(specs_path, 'r', encoding='utf-8') as f:
+            specs_clean = f.read().replace('export const ', 'const ')
 
     with open(main_path, 'r', encoding='utf-8') as f:
         main_js = f.read()
@@ -42,7 +48,7 @@ def build_standalone():
         clean_main_lines.append(line)
     main_clean = '\n'.join(clean_main_lines)
 
-    combined_js = data_clean + '\n\n' + main_clean
+    combined_js = data_clean + '\n\n' + specs_clean + '\n\n' + main_clean
 
     # Inline CSS
     html = html.replace('<link rel="stylesheet" href="/src/prototype.css">', '<style>\n' + css + '\n</style>')

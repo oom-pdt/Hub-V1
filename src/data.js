@@ -16,7 +16,8 @@ export const state = {
     platforms: new Set(),
     statuses: new Set(),
     formats: new Set(),
-    campaigns: new Set()
+    campaigns: new Set(),
+    selectedEntities: new Set()
   },
   dashboardDateFilters: {
     client: { mode: 'past', pastNumber: 30, pastUnit: 'days', currentUnit: 'day' },
@@ -118,3 +119,51 @@ export const validUnmappedAccounts = [
   { platform: 'google', id: '#998-234-1102', name: 'APAC Search Brand Expansion' },
   { platform: 'meta', id: 'act_4920194820', name: 'Meta CTWA Direct Promo' }
 ];
+
+export const defaultScreenSpecs = {
+  'agency-home': {
+    title: 'Agency Master Hub & Dashboard',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: `### Screen Purpose & Objectives\nCentral command dashboard for agency administrators managing hundreds of client ad accounts and multi-tenant workspaces.\n\n### Key Functional Specifications\n- **Unified Portfolio KPIs**: Displays 5 aggregate metrics across 612 client workspaces (Total Managed Accounts, $142.8k Spend, $13.60 CPM, $0.95 CPC, $65.38 CPA).\n- **Action-Required Triage**: Dynamically alerts agency admins to unmapped ad accounts and workspaces lacking ad accounts with direct 1-click links to resolve.\n- **Workspace Switcher**: Top header switcher provides instant searching across 600+ client accounts and switching between agency overview and client workspace views.\n- **Global Sync Status**: Live pill indicating sync state with Google Ads and Meta Ads platform APIs.`
+  },
+  'agency-internal-org': {
+    title: 'Agency Team Members & Custom Roles',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: `### Screen Purpose & Objectives\nManage internal agency personnel, team assignments, and create reusable custom permission roles.\n\n### Key Functional Specifications\n- **Custom Role Creator**: Create custom roles with custom label names and 8 borderless color badges (Violet, Indigo, Teal, Emerald, etc.).\n- **Granular Permissions**: Workspace Management (View/Manage), Analytics access, Ad Accounts linking rights, and User management.\n- **Member Workspace Assignment**: Manage user modal allows assigning agency team members to specific client workspaces with fast search and count indicators.\n- **Fast Invite**: Email input modal for immediate team onboarding.`
+  },
+  'agency-adaccounts': {
+    title: 'Ad Account Discovery & Workspace Linking',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: `### Screen Purpose & Objectives\nTriage and map discovered Google & Meta advertising accounts to the correct client workspace.\n\n### Key Functional Specifications\n- **Unlinked Account Queue**: Shows accounts discovered via Google/Meta OAuth that need client workspace assignment.\n- **Inline Fast Mapping**: In-row dropdown to pick a client workspace and link with one click.\n- **CID & ID Manual Search**: Modal to look up specific Google CID numbers (#000-000-0000) or Meta Account IDs.\n- **Safe Unlink Confirmation**: Warning modal prevents accidental unlinking by requiring confirmation and explaining analytics impact.`
+  },
+  'agency-orgs': {
+    title: 'Client Workspaces Directory & Creation',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: `### Screen Purpose & Objectives\nMaster searchable directory of all client workspaces under agency management.\n\n### Key Functional Specifications\n- **Create Client Workspace**: Modal to input workspace name, automatically adding the workspace and immediately redirecting to its Settings page.\n- **Multi-Tenant Search & Sorting**: Real-time filtering across 600+ workspaces by name, active ad platform, spend, and conversion volumes.\n- **Workspace Drilldown**: Clicking any row immediately switches view into that client workspace's dedicated analytics environment.`
+  },
+  'client-home': {
+    title: '1. Workspace Home & Analytics',
+    author: 'Hannah',
+    updatedAt: 'Oct 7, 2026',
+    notes: `### Screen Purpose & Objectives
+Client-facing workspace home providing a simplified, unified overview of Meta and Google Ads performance. Designed to deliver high-value insights that eliminate the client's need to access native ad platforms, while also serving as an inspection view for agency administrators.
+
+### Key Functional Specifications (All metrics TBC)
+- **Top-Level KPI Cards**: Displays critical, aggregate metrics spanning all campaigns and ad platforms. Exact values (e.g., Total Spend, CPA, Conversions) are placeholders pending final feedback from performance marketing and account management teams.
+- **Hierarchical Campaign Breakdown Table**: A mandatory data table enabling users to drill down through performance tiers (Platform -> Campaign -> Ad Group -> Ad) to compare key statistics. Includes capabilities to filter by specific data views.
+- **Multi-Selectable Searchable Entity Dropdown Filter**: Allows filtering the table by specific campaigns, ad groups, or ads simultaneously. Includes real-time keyword search, type tabs (\`All\`, \`Campaigns\`, \`Ad Groups\`, \`Ads\`), quick actions (\`Select all shown\`, \`Deselect all\`), and a counter badge on the trigger button. Sits prominently above the table and action CTAs with a high stacking order (\`z-index: 9999\`) so it lays seamlessly over charts below without being masked.
+- **Selected Filters Tag Bar**: Displays dismissible chips for each selected campaign/ad group/ad directly beneath controls with 1-click removal and "Clear all" button.
+- **Graphic Visualizations (Provisional)**: Proposed visual components currently include a Daily Performance Graph (Spend/Clicks/Conversions) and an Optimization Heatmap (Hour of Day x Day of Week). These specific formats are conceptual placeholders; the final visuals will be dictated by account management feedback to ensure only high-impact, highly relevant data is presented. Low-interest charts will be removed or replaced.`
+  },
+  'client-profile': {
+    title: 'Client Workspace Settings & Permissions',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: `### Screen Purpose & Objectives\nClient workspace administration, user permissions, primary contact assignment, and connected ad accounts.\n\n### Key Functional Specifications\n- **Simplified Permissions Format**: Permissions displayed as comma-separated string: "View, Manage members" or "View Only" (no unnecessary badges).\n- **Strict Single Primary Contact**: Exactly 1 Primary Contact per workspace. Selecting a primary contact automatically clears previous primary user.\n- **Permission Configuration**: "View workspace analytics (Default)" is permanently checked and disabled. "Manage members" is an optional checkbox.\n- **Action Button**: Standardized "Edit" button for updating user permissions.`
+  }
+};
+

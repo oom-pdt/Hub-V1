@@ -1,8 +1,10 @@
 import {
   state, availableRoleColors, roleColorsMap, statusColorsMap,
   agencyRoles, permsGroups, agencyMembers, masterWorkspacesData,
-  clientUsers, agencyPerformanceData, liveMappedAccounts, validUnmappedAccounts
+  clientUsers, agencyPerformanceData, liveMappedAccounts, validUnmappedAccounts,
+  defaultScreenSpecs
 } from './data.js';
+import { screenSpecs } from './specs.js';
 
 let selectedRoleColor = availableRoleColors[0];
 let editingClientUserId = null;
@@ -797,24 +799,310 @@ function saveClientUser() {
   closeClientUserModal();
 }
 
-function populateFilterCampaigns() {
-  const list = document.getElementById('filter-campaign-checklist');
-  if (!list) return;
-  list.innerHTML = performanceData.mta.campaigns.map(c => `
-    <label class="filter-campaign-item">
-        <input type="checkbox" value="${c.id}" onchange="toggleAdvancedFilterItem('campaign', '${c.id}', this)" ${state.activeAdvFilters.campaigns.has(c.id) ? 'checked' : ''}>
-        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</span>
-    </label>
-  `).join('');
+let currentEntityTypeFilter = 'all';
+let currentEntitySearchQuery = '';
+
+function getAllSelectableEntities() {
+  const list = [];
+  
+  // Campaigns
+  (performanceData.mta.campaigns || []).forEach(c => {
+    list.push({
+      key: `campaign:${c.id}`,
+      type: 'campaign',
+      typeLabel: 'Campaign',
+      id: c.id,
+      name: c.name,
+      parentName: c.platformName || 'Google Ads',
+      platform: c.platformName || 'Google'
+    });
+  });
+
+  // Ad Groups
+  (performanceData.mta.adGroups || []).forEach(ag => {
+    list.push({
+      key: `adgroup:${ag.id}`,
+      type: 'adgroup',
+      typeLabel: 'Ad Group',
+      id: ag.id,
+      name: ag.name,
+      parentName: `in ${ag.campaignName || 'Campaign'} · ${ag.platformName || 'Google'}`,
+      platform: ag.platformName || 'Google',
+      campaignId: ag.campaignId
+    });
+  });
+
+  // Ads
+  (performanceData.mta.ads || []).forEach(ad => {
+    list.push({
+      key: `ad:${ad.id}`,
+      type: 'ad',
+      typeLabel: 'Ad',
+      id: ad.id,
+      name: ad.name,
+      parentName: `in ${ad.adGroupName || 'Ad Group'} · ${ad.platformName || 'Google'}`,
+      platform: ad.platformName || 'Google',
+      adGroupId: ad.adGroupId,
+      campaignId: ad.campaignId
+    });
+  });
+
+  return list;
+}
+
+function renderEntityDropdownList() {
+  const container = document.getElementById('entity-items-list');
+  if (!container) return;
+
+  const allEntities = getAllSelectableEntities();
+  
+  // Update category counts
+  const allCount = allEntities.length;
+  const campaignCount = allEntities.filter(e => e.type === 'campaign').length;
+  const adGroupCount = allEntities.filter(e => e.type === 'adgroup').length;
+  const adCount = allEntities.filter(e => e.type === 'ad').length;
+
+  const countAllEl = document.getElementById('type-count-all');
+  if (countAllEl) countAllEl.innerText = allCount;
+  const countCampEl = document.getElementById('type-count-campaign');
+  if (countCampEl) countCampEl.innerText = campaignCount;
+  const countAgEl = document.getElementById('type-count-adgroup');
+  if (countAgEl) countAgEl.innerText = adGroupCount;
+  const countAdEl = document.getElementById('type-count-ad');
+  if (countAdEl) countAdEl.innerText = adCount;
+
+  // Filter by active tab and search query
+  const q = currentEntitySearchQuery.toLowerCase().trim();
+  const filtered = allEntities.filter(item => {
+    if (currentEntityTypeFilter !== 'all' && item.type !== currentEntityTypeFilter) {
+      return false;
+    }
+    if (q) {
+      const matchName = item.name.toLowerCase().includes(q);
+      const matchParent = item.parentName.toLowerCase().includes(q);
+      const matchPlatform = item.platform.toLowerCase().includes(q);
+      return matchName || matchParent || matchPlatform;
+    }
+    return true;
+  });
+
+  const showingCountEl = document.getElementById('entity-showing-count');
+  if (showingCountEl) {
+    showingCountEl.innerText = `${filtered.length} shown`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="py-6 text-center text-slate-400 text-xs italic">
+        No campaigns, ad groups, or ads match "${escapeHtml(q)}".
+      </div>
+    `;
+    return;
+  }
+
+  const selectedSet = state.activeAdvFilters.selectedEntities || new Set();
+
+  container.innerHTML = filtered.map(item => {
+    const isSelected = selectedSet.has(item.key);
+    const tagClass = item.type === 'campaign' ? 'entity-tag-campaign' : (item.type === 'adgroup' ? 'entity-tag-adgroup' : 'entity-tag-ad');
+
+    return `
+      <div class="entity-item-row ${isSelected ? 'selected' : ''}" onclick="toggleEntitySelection('${item.key}', event)">
+        <div class="entity-custom-checkbox">
+          ${isSelected ? '✓' : ''}
+        </div>
+        <span class="${tagClass}">${item.typeLabel}</span>
+        <div class="entity-item-content">
+          <span class="entity-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+          <span class="entity-item-parent" title="${escapeHtml(item.parentName)}">${escapeHtml(item.parentName)}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateEntityDropdownUI() {
+  const selectedSet = state.activeAdvFilters.selectedEntities || new Set();
+  const count = selectedSet.size;
+
+  const triggerLabel = document.getElementById('entity-trigger-label');
+  const triggerBadge = document.getElementById('entity-trigger-badge');
+  const summaryBadge = document.getElementById('entity-filter-summary-badge');
+  const chipsBox = document.getElementById('entity-selected-chips-box');
+
+  if (count === 0) {
+    if (triggerLabel) triggerLabel.innerText = 'All Campaigns, Groups & Ads';
+    if (triggerBadge) triggerBadge.style.display = 'none';
+    if (summaryBadge) summaryBadge.style.display = 'none';
+    if (chipsBox) {
+      chipsBox.style.display = 'none';
+      chipsBox.innerHTML = '';
+    }
+  } else {
+    // Generate readable summary text
+    let campCount = 0, agCount = 0, adCount = 0;
+    selectedSet.forEach(k => {
+      if (k.startsWith('campaign:')) campCount++;
+      else if (k.startsWith('adgroup:')) agCount++;
+      else if (k.startsWith('ad:')) adCount++;
+    });
+
+    const parts = [];
+    if (campCount > 0) parts.push(`${campCount} Camp.`);
+    if (agCount > 0) parts.push(`${agCount} Grp.`);
+    if (adCount > 0) parts.push(`${adCount} Ad${adCount > 1 ? 's' : ''}`);
+
+    if (triggerLabel) triggerLabel.innerText = `${count} selected (${parts.join(', ')})`;
+    if (triggerBadge) {
+      triggerBadge.innerText = count;
+      triggerBadge.style.display = 'inline-flex';
+    }
+    if (summaryBadge) {
+      summaryBadge.innerText = `${count} selected`;
+      summaryBadge.style.display = 'inline-block';
+    }
+
+    // Render removable tags preview chips
+    if (chipsBox) {
+      chipsBox.style.display = 'flex';
+      const allEntities = getAllSelectableEntities();
+      const entityMap = new Map(allEntities.map(e => [e.key, e]));
+
+      const chipsHtml = Array.from(selectedSet).map(key => {
+        const item = entityMap.get(key);
+        if (!item) return '';
+        return `
+          <span class="entity-selected-chip">
+            <span class="truncate max-w-[140px]">${escapeHtml(item.name)}</span>
+            <button type="button" class="entity-selected-chip-remove" onclick="removeEntitySelection('${key}')" title="Remove filter">✕</button>
+          </span>
+        `;
+      }).join('');
+
+      chipsBox.innerHTML = chipsHtml + `
+        <button type="button" class="entity-selected-chip-clear" onclick="deselectAllEntities()" title="Clear all entity filters">Clear All</button>
+      `;
+    }
+  }
+}
+
+function toggleEntityDropdown(event) {
+  if (event) event.stopPropagation();
+  const popover = document.getElementById('entity-dropdown-popover');
+  const trigger = document.getElementById('entity-dropdown-trigger');
+  const chevron = document.getElementById('entity-trigger-chevron');
+  if (!popover) return;
+
+  const isOpen = popover.style.display !== 'none';
+  if (isOpen) {
+    closeEntityDropdown();
+  } else {
+    renderEntityDropdownList();
+    popover.style.display = 'flex';
+    if (trigger) trigger.classList.add('open');
+    if (chevron) chevron.classList.add('rotate-180');
+    setTimeout(() => {
+      document.getElementById('entity-search-input')?.focus();
+    }, 50);
+  }
+}
+
+function closeEntityDropdown() {
+  const popover = document.getElementById('entity-dropdown-popover');
+  const trigger = document.getElementById('entity-dropdown-trigger');
+  const chevron = document.getElementById('entity-trigger-chevron');
+  if (popover) popover.style.display = 'none';
+  if (trigger) trigger.classList.remove('open');
+  if (chevron) chevron.classList.remove('rotate-180');
+}
+
+function filterEntityDropdownItems(val) {
+  currentEntitySearchQuery = val || '';
+  const clearBtn = document.getElementById('entity-search-clear-btn');
+  if (clearBtn) {
+    clearBtn.style.display = currentEntitySearchQuery ? 'inline-block' : 'none';
+  }
+  renderEntityDropdownList();
+}
+
+function clearEntitySearchInput() {
+  const input = document.getElementById('entity-search-input');
+  if (input) input.value = '';
+  filterEntityDropdownItems('');
+}
+
+function setEntityTypeFilter(type, btn) {
+  currentEntityTypeFilter = type;
+  document.querySelectorAll('.entity-type-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderEntityDropdownList();
+}
+
+function toggleEntitySelection(key, event) {
+  if (event) event.stopPropagation();
+  if (!state.activeAdvFilters.selectedEntities) {
+    state.activeAdvFilters.selectedEntities = new Set();
+  }
+
+  if (state.activeAdvFilters.selectedEntities.has(key)) {
+    state.activeAdvFilters.selectedEntities.delete(key);
+  } else {
+    state.activeAdvFilters.selectedEntities.add(key);
+  }
+
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
+  filterPerformanceTable();
+}
+
+function selectAllVisibleEntities() {
+  const allEntities = getAllSelectableEntities();
+  const q = currentEntitySearchQuery.toLowerCase().trim();
+  const filtered = allEntities.filter(item => {
+    if (currentEntityTypeFilter !== 'all' && item.type !== currentEntityTypeFilter) return false;
+    if (q) {
+      return item.name.toLowerCase().includes(q) || item.parentName.toLowerCase().includes(q) || item.platform.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  if (!state.activeAdvFilters.selectedEntities) {
+    state.activeAdvFilters.selectedEntities = new Set();
+  }
+  filtered.forEach(e => state.activeAdvFilters.selectedEntities.add(e.key));
+
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
+  filterPerformanceTable();
+}
+
+function deselectAllEntities() {
+  if (state.activeAdvFilters.selectedEntities) {
+    state.activeAdvFilters.selectedEntities.clear();
+  }
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
+  filterPerformanceTable();
+}
+
+function removeEntitySelection(key) {
+  if (state.activeAdvFilters.selectedEntities) {
+    state.activeAdvFilters.selectedEntities.delete(key);
+  }
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
+  filterPerformanceTable();
 }
 
 function toggleAdvancedFilterPanel() {
   const panel = document.getElementById('advanced-filter-panel');
   if (!panel) return;
   if (panel.style.display === 'none' || !panel.style.display) {
-    populateFilterCampaigns();
+    renderEntityDropdownList();
+    updateEntityDropdownUI();
     panel.style.display = 'block';
   } else {
+    closeEntityDropdown();
     panel.style.display = 'none';
   }
 }
@@ -824,12 +1112,8 @@ function toggleAdvancedFilterItem(category, value, elem) {
   if (category === 'platform') targetSet = state.activeAdvFilters.platforms;
   if (category === 'status') targetSet = state.activeAdvFilters.statuses;
   if (category === 'format') targetSet = state.activeAdvFilters.formats;
-  if (category === 'campaign') targetSet = state.activeAdvFilters.campaigns;
 
-  if (category === 'campaign') {
-    if (elem.checked) targetSet.add(value);
-    else targetSet.delete(value);
-  } else {
+  if (targetSet) {
     if (targetSet.has(value)) {
       targetSet.delete(value);
       elem.classList.remove('selected');
@@ -846,8 +1130,12 @@ function clearAllAdvancedFilters() {
   state.activeAdvFilters.statuses.clear();
   state.activeAdvFilters.formats.clear();
   state.activeAdvFilters.campaigns.clear();
+  if (state.activeAdvFilters.selectedEntities) {
+    state.activeAdvFilters.selectedEntities.clear();
+  }
   document.querySelectorAll('.filter-select-pill').forEach(el => el.classList.remove('selected'));
-  document.querySelectorAll('.filter-campaign-item input').forEach(el => el.checked = false);
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
   filterPerformanceTable();
 }
 
@@ -940,8 +1228,48 @@ function renderPerformanceTable() {
   if (state.activeAdvFilters.formats.size > 0) {
     dataset = dataset.filter(x => x.formats ? x.formats.some(f => state.activeAdvFilters.formats.has(f)) : state.activeAdvFilters.formats.has(x.format));
   }
-  if (state.activeAdvFilters.campaigns.size > 0) {
+  if (state.activeAdvFilters.campaigns && state.activeAdvFilters.campaigns.size > 0) {
     dataset = dataset.filter(x => state.currentPerformanceView === 'campaign' ? state.activeAdvFilters.campaigns.has(x.id) : (state.currentPerformanceView === 'platform' ? true : state.activeAdvFilters.campaigns.has(x.campaignId)));
+  }
+
+  if (state.activeAdvFilters.selectedEntities && state.activeAdvFilters.selectedEntities.size > 0) {
+    const selCampaignIds = new Set();
+    const selAdGroupIds = new Set();
+    const selAdIds = new Set();
+
+    state.activeAdvFilters.selectedEntities.forEach(k => {
+      const parts = k.split(':');
+      const type = parts[0];
+      const id = parts[1];
+      if (type === 'campaign') selCampaignIds.add(id);
+      else if (type === 'adgroup') selAdGroupIds.add(id);
+      else if (type === 'ad') selAdIds.add(id);
+    });
+
+    dataset = dataset.filter(x => {
+      if (state.currentPerformanceView === 'campaign') {
+        if (selCampaignIds.has(x.id)) return true;
+        if (performanceData.mta.adGroups.some(ag => ag.campaignId === x.id && selAdGroupIds.has(ag.id))) return true;
+        if (performanceData.mta.ads.some(ad => ad.campaignId === x.id && selAdIds.has(ad.id))) return true;
+        return false;
+      } else if (state.currentPerformanceView === 'adgroup') {
+        if (selAdGroupIds.has(x.id)) return true;
+        if (selCampaignIds.has(x.campaignId)) return true;
+        if (performanceData.mta.ads.some(ad => ad.adGroupId === x.id && selAdIds.has(ad.id))) return true;
+        return false;
+      } else if (state.currentPerformanceView === 'ad') {
+        if (selAdIds.has(x.id)) return true;
+        if (selAdGroupIds.has(x.adGroupId)) return true;
+        if (selCampaignIds.has(x.campaignId)) return true;
+        return false;
+      } else if (state.currentPerformanceView === 'platform') {
+        if (performanceData.mta.campaigns.some(c => c.platformId === x.id && selCampaignIds.has(c.id))) return true;
+        if (performanceData.mta.adGroups.some(ag => ag.platformId === x.id && selAdGroupIds.has(ag.id))) return true;
+        if (performanceData.mta.ads.some(ad => ad.platformId === x.id && selAdIds.has(ad.id))) return true;
+        return false;
+      }
+      return true;
+    });
   }
 
   if (state.campaignSearchQuery) {
@@ -1733,7 +2061,6 @@ function renderSwitcherList(searchQuery = '') {
           </div>
         </div>
         <div class="switcher-row-right">
-          <span class="switcher-spend-pill">${ws.spend}</span>
           <span class="switcher-current-check"><i data-lucide="check" class="w-4 h-4"></i></span>
         </div>
       </div>
@@ -1785,6 +2112,7 @@ function jumpToScreen(screenId) {
   const sidebar = document.getElementById('app-sidebar');
   if (sidebar) sidebar.classList.remove('open');
   
+  renderDirectorySpecs();
   window.lucide?.createIcons();
   if (screenId === 'client-home') setTimeout(initClientAnalyticsCharts, 50);
 }
@@ -1861,8 +2189,7 @@ function renderDevSubtoggles(screenId) {
     });
   } else {
     const note = document.createElement('span'); 
-    note.style.fontSize = '10.5px'; 
-    note.style.color = '#78350f'; 
+    note.className = 'dev-subtoggle-empty'; 
     note.innerText = 'Default state only'; 
     container.appendChild(note);
   }
@@ -2147,7 +2474,7 @@ function injectDateFilters() {
           <span id="${scope}-date-range-label">Past 30 days</span>
           <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
         </button>
-        <div class="date-filter-popover glass-panel rounded-2xl" id="${scope}-date-filter-popover">
+        <div class="date-filter-popover rounded-2xl" id="${scope}-date-filter-popover">
           <div class="date-filter-tabs">
             <button type="button" class="date-filter-tab active" data-date-tab="past" onclick="switchDateFilterTab('${scope}','past')">Past</button>
             <button type="button" class="date-filter-tab" data-date-tab="current" onclick="switchDateFilterTab('${scope}','current')">Current</button>
@@ -2208,6 +2535,210 @@ function initStaticMocks() {
   renderClientAgencyAccess();
 }
 
+// --- DEVELOPER DIRECTORY SPECS & PRODUCT NOTES SYSTEM ---
+let specsDrawerOpen = false;
+
+function getCurrentScreenSpecs() {
+  const screenId = state.currentScreenId || 'client-home';
+  const specsSource = (typeof screenSpecs !== 'undefined' && screenSpecs) ? screenSpecs : defaultScreenSpecs;
+  return specsSource[screenId] || {
+    title: 'Screen Specifications',
+    author: 'Hannah',
+    updatedAt: 'Oct 6, 2026',
+    notes: 'No specifications written yet.'
+  };
+}
+
+function formatMarkdownNotes(text) {
+  if (!text) return '<p class="text-slate-400 italic">No notes entered yet.</p>';
+  const lines = text.split('\n');
+  let html = '';
+  const listStack = [];
+
+  function closeAllLists() {
+    while (listStack.length > 0) {
+      listStack.pop();
+      html += '</li></ul>';
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith('### ')) {
+      closeAllLists();
+      html += `<h3>${escapeHtml(trimmed.slice(4))}</h3>`;
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      closeAllLists();
+      html += `<h3 class="text-base text-brand-600 font-bold">${escapeHtml(trimmed.slice(3))}</h3>`;
+      continue;
+    }
+
+    const bulletMatch = rawLine.match(/^(\s*)([-*]|\d+\.)\s+(.*)$/);
+    if (bulletMatch) {
+      const leadingSpaces = bulletMatch[1].replace(/\t/g, '  ').length;
+      const content = parseInlineMarkdown(bulletMatch[3]);
+
+      if (listStack.length === 0) {
+        listStack.push(leadingSpaces);
+        html += '<ul><li>' + content;
+      } else {
+        const currentIndent = listStack[listStack.length - 1];
+        if (leadingSpaces > currentIndent) {
+          listStack.push(leadingSpaces);
+          html += '<ul><li>' + content;
+        } else if (leadingSpaces === currentIndent) {
+          html += '</li><li>' + content;
+        } else {
+          while (listStack.length > 0 && listStack[listStack.length - 1] > leadingSpaces) {
+            listStack.pop();
+            html += '</li></ul>';
+          }
+          if (listStack.length === 0) {
+            listStack.push(leadingSpaces);
+            html += '<ul><li>' + content;
+          } else {
+            html += '</li><li>' + content;
+          }
+        }
+      }
+      continue;
+    }
+
+    if (listStack.length > 0) {
+      const leadingSpaces = (rawLine.match(/^(\s*)/) || ['', ''])[1].replace(/\t/g, '  ').length;
+      if (leadingSpaces >= 2) {
+        html += `<div class="mt-1 text-slate-600">${parseInlineMarkdown(trimmed)}</div>`;
+        continue;
+      }
+      closeAllLists();
+    }
+    html += `<p>${parseInlineMarkdown(trimmed)}</p>`;
+  }
+
+  closeAllLists();
+  return html;
+}
+
+function parseInlineMarkdown(str) {
+  return escapeHtml(str)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-100 text-brand-600 font-mono text-[11px]">$1</code>');
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+async function reloadLiveSpecs() {
+  try {
+    const mod = await import(/* @vite-ignore */ `/src/specs.js?v=${Date.now()}`);
+    if (mod && mod.screenSpecs) {
+      if (typeof screenSpecs !== 'undefined') {
+        Object.assign(screenSpecs, mod.screenSpecs);
+      }
+      // Re-render drawer content if currently open
+      if (specsDrawerOpen) {
+        renderDirectorySpecsContent();
+      }
+    }
+  } catch (err) {
+    // Silent fallback to bundled specs for offline/standalone mode
+  }
+}
+
+function renderDirectorySpecs() {
+  renderDirectorySpecsContent();
+  reloadLiveSpecs();
+}
+
+function renderDirectorySpecsContent() {
+  const specs = getCurrentScreenSpecs();
+  
+  // Update content container inside specs drawer
+  const container = document.getElementById('dev-specs-content');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="dev-specs-drawer-header">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-brand-600 shrink-0">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-slate-900 tracking-tight">${escapeHtml(specs.title)}</h3>
+          <div class="text-[12px] text-slate-500 font-medium mt-0.5">
+            Specifications by <strong>Hannah</strong> · Last updated ${escapeHtml(specs.updatedAt)}
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-integ text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-slate-700 hover:text-slate-900 cursor-pointer" onclick="copyCurrentScreenSpecs()" title="Copy specifications as Markdown">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          Copy Markdown
+        </button>
+      </div>
+    </div>
+    <div class="dev-specs-drawer-body">
+      <div class="specs-markdown-view">
+        ${formatMarkdownNotes(specs.notes)}
+      </div>
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-400"></i>
+          Screen specifications update automatically when you switch screens using the directory dropdown. Click Specs to collapse.
+        </span>
+      </div>
+    </div>
+  `;
+
+  window.lucide?.createIcons();
+}
+
+function toggleDirectorySpecs() {
+  specsDrawerOpen = !specsDrawerOpen;
+  const drawer = document.getElementById('dev-specs-drawer');
+  const btn = document.getElementById('dev-specs-toggle-btn');
+  const chevron = document.getElementById('dev-specs-chevron');
+
+  if (drawer) drawer.style.display = specsDrawerOpen ? 'block' : 'none';
+  if (btn) btn.classList.toggle('active', specsDrawerOpen);
+  if (chevron) chevron.classList.toggle('rotate-180', specsDrawerOpen);
+
+  if (specsDrawerOpen) {
+    renderDirectorySpecs();
+  }
+}
+
+function closeDirectorySpecs() {
+  specsDrawerOpen = false;
+  const drawer = document.getElementById('dev-specs-drawer');
+  const btn = document.getElementById('dev-specs-toggle-btn');
+  const chevron = document.getElementById('dev-specs-chevron');
+
+  if (drawer) drawer.style.display = 'none';
+  if (btn) btn.classList.remove('active');
+  if (chevron) chevron.classList.remove('rotate-180');
+}
+
+function copyCurrentScreenSpecs() {
+  const specs = getCurrentScreenSpecs();
+  const text = `# ${specs.title}\nSpecifications by Hannah (Last updated ${specs.updatedAt})\n\n${specs.notes}`;
+  navigator.clipboard.writeText(text).then(() => {
+    showCanvasToast('Copied specs as Markdown to clipboard!');
+  }).catch(() => {
+    showCanvasToast('Unable to copy to clipboard');
+  });
+}
+
 // Bind all to window so HTML event handlers work seamlessly
 Object.assign(window, {
   jumpToScreen, toggleSidebar, handleBrandClick, toggleSwitcherDropdown,
@@ -2230,10 +2761,18 @@ Object.assign(window, {
   saveAgencyUser, revokeAgencyUser, handleDevSubtoggle, setTriageState,
   setOrgRoleMode, toggleDateFilter, switchDateFilterTab, applyDateFilter,
   closeDateFilter, drillDownPerformance, togglePrimaryContactState, setPrimaryContactDirectly,
-  closeCreateOrgModal, markCreateOrgModalModified, createWorkspaceSubmit
+  closeCreateOrgModal, markCreateOrgModalModified, createWorkspaceSubmit,
+  toggleDirectorySpecs, closeDirectorySpecs, renderDirectorySpecs, copyCurrentScreenSpecs,
+  toggleEntityDropdown, closeEntityDropdown, filterEntityDropdownItems,
+  clearEntitySearchInput, setEntityTypeFilter, toggleEntitySelection,
+  selectAllVisibleEntities, deselectAllEntities, removeEntitySelection
 });
 
 document.addEventListener('click', function(e) {
+  const entityContainer = document.getElementById('entity-dropdown-container');
+  if (entityContainer && !entityContainer.contains(e.target)) {
+    closeEntityDropdown();
+  }
   if (!e.target.closest('.date-filter-bar')) {
     document.querySelectorAll('.date-filter-bar.open').forEach(bar => { 
       bar.classList.remove('open'); 
@@ -2249,6 +2788,8 @@ document.addEventListener('click', function(e) {
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') { 
+    closeEntityDropdown();
+    if (specsDrawerOpen) closeDirectorySpecs();
     if (document.getElementById('unmap-warning-modal')?.style.display !== 'none') closeUnmapWarning(); 
     if (document.getElementById('map-confirm-modal')?.style.display !== 'none') closeMapConfirm();
     if (document.getElementById('role-modal')?.style.display !== 'none') closeRoleModal();
@@ -2280,6 +2821,9 @@ function initApp() {
   renderAgencyMembers();
   renderRolesList();
   renderColorSelector();
+  renderDirectorySpecs();
+  renderEntityDropdownList();
+  updateEntityDropdownUI();
   jumpToScreen('client-home');
   updateTopBarUI();
 }

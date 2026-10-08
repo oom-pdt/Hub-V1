@@ -2,9 +2,23 @@
 
 A multi-tenant advertising analytics and workspace management prototype for agencies and client workspaces.
 
+## Developer Prototype Directory & Product Specs
+
+The top **Developer Prototype Directory** toolbar has been redesigned with a modern dark slate & indigo aesthetic:
+- **Screen Selector**: Jump to any screen across Agency and Client Workspaces.
+- **State Toggles**: Switch between different prototype states and views.
+- **Integrated Specs & Notes Drawer**:
+  - Click **Specs & Notes** in the top developer bar to open the slide-down specifications drawer.
+  - Shows formatted functional specifications, objectives, and acceptance criteria for whichever screen is currently active.
+  - Updates automatically as you navigate between screens.
+  - Includes status indicators (`Approved`, `In Review`, `Draft`), PM author attribution, and a 1-click **Copy Markdown** button.
+  - Press `Esc` or click **Close Specs** to collapse the drawer.
+
+---
+
 ## GitHub Pages Deployment
 
-The repository entry point **`index.html`** is now generated as a **fully self-contained, single-file bundle**:
+The repository entry point **`index.html`** is generated as a **fully self-contained, single-file bundle**:
 - All CSS stylesheets, glassmorphic themes, and layout rules are directly embedded.
 - All JavaScript interactivity, navigation logic, and analytics datasets are inlined.
 - Zero dependencies on local server paths like `/src/` that cause 404 errors on GitHub Pages subpaths.
