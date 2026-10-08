@@ -11,10 +11,11 @@ export const screenSpecs = {
 Central command dashboard for agency administrators managing hundreds of client ad accounts and multi-tenant workspaces. Designed for portfolio-level performance monitoring, account triage, and proprietary cross-client benchmarking.
 
 ### Key Functional Specifications
+- **Workspace Switcher**: Top header switcher provides instant searching and navigation between the agency macro-view and individual client workspaces. 
 - **Unified Portfolio KPIs (KPIs TBC)**: Displays aggregate, cross-platform metrics across all active client workspaces (e.g., Total Managed Accounts, Total Ad Spend, Blended CPM, CPC, CPA).
 - **Action-Required Alerts**: Dynamically alerts agency admins to unmapped ad accounts, failed syncs, or workspaces lacking ad accounts, providing direct 1-click links to resolve the issues.
 - **Client Workspace Directory Table**: A universally searchable and sortable list of all client workspaces. Displays top-level comparative KPIs (Spend, Conversions, CPA) to help admins quickly identify outliers and navigate directly into specific client dashboards.
-- **Workspace Switcher**: Top header switcher provides instant searching and navigation between the agency macro-view and individual client workspaces. 
+- **Cross-Client Campaigns**: I included this in the prototype - but I don't actually think it's needed for v1 since pulling KPIs for campaigns across all users might be too heavy. The Workspace Directory table above should suffice for cross-client comparison without campaign-level granularity.
 `
   },
 
